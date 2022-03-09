@@ -1,0 +1,1226 @@
+$.ajaxSetup({
+    headers: {
+        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+    }
+});
+
+
+jQuery(document).ready(function() {
+
+
+	statement_values();
+
+	init_save_button();
+
+	addto_lobby();
+
+  statement_key();
+ 
+	//init_statement_editable();
+});
+
+var statement_key =function(){
+        
+        $(".statement-panel .plus_sheet button").on('touchstart click', function() {
+          //alert("reached here .....");
+           // console.log("reached here ......");
+            var elem=$(this).parents(".statement-panel");
+            //console.log(elem);
+            var sheet_pages=$(elem).find(".sheet_pages");
+            var sheet_data=prepare_create_sheet(elem);
+            
+            sheet_pages.append(sheet_data.html);
+            var last_sheet=sheet_pages.find(".sheet-container:last");
+            //console.log(last_sheet);
+            //last_sheet.addClass("active");
+            sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+            sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+            $(elem).parents(".habits-container").find(".contenteditable-textarea").html('');
+
+            personal_save_sheet(last_sheet, sheet_pages);
+            init_personal_sheet_toolbar();
+            apply_Personaloverflow();
+        });
+        
+        getAllPersonalStatementSheet({},function(data){
+
+            $.each(data,function(i,d){
+                
+                //console.log(d);
+
+                if(d.meta_attr.attr=='statement'){
+
+                    //console.log("statement");
+                    var elem=$(".statement-panel");
+                    //console.log(elem);
+                    var sheet_pages=$(elem).find(".sheet_pages");
+                    console.log(sheet_pages);
+                    var sheet_data=render_sheet(d.meta_attr);
+                    //console.log(sheet_data.html);
+                    /*if(d.is_active==1){
+                        
+                        console.log($(elem).parent().find("textarea"));
+
+                        $(elem).parent().find("textarea").val(d.meta_value);
+                    }*/
+
+                    sheet_pages.append(sheet_data.html); 
+
+                    //if(d.is_active==1){
+                        
+                        //console.log($(elem).parent().find("textarea"));
+
+                        sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+                        sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+                        $(elem).parent().find(".contenteditable-textarea").html(d.meta_value);
+                    //}
+
+                }
+            });
+
+            $.tloader("hide");
+            init_personal_sheet_toolbar();
+
+            apply_Personaloverflow();
+            //console.log("init...");
+
+            $(".contenteditable-textarea#personal_statement_box").bind('focus', function() {
+             $(".sheet-action").hide();
+             apply_Personaloverflow();
+            });
+
+            $(".contenteditable-textarea#personal_statement_box").bind('input propertychange', function() {
+
+              var current_sheet=$(this).parents(".habits-container").find(".sheet-container.active");
+
+              var sheet_container=$(this).parents(".habits-container").find(".sheet_pages");
+              
+              //console.log(sheet_container);
+
+              personal_save_sheet(current_sheet, sheet_container);
+
+            });
+      });
+
+}
+
+var init_statement_editable = function(){
+
+	$(".statement-value-row").unbind("dblclick").bind("dblclick",function(){
+		$this = $(this);
+	    $this.attr('contenteditable', "true");
+	    //$this.blur();
+	    $this.focus();
+	});
+
+	$(".statement-value-row").unbind("blur").bind("blur",function(){
+		$this = $(this);
+	    $this.attr('contenteditable', "false");
+	    //$this.blur();
+	    //$this.focus();
+	});
+}
+
+var serialize_statement_values = function(){
+
+	var statement_values=[];
+
+	$(".statement-value-row-input").each(function(){
+
+
+		var row ={};
+		row.id=$(this).data("id");
+		row.meta_type=$(this).data("type");
+		row.html=$(this).html();
+    row.addto_lobby = $("#addto_lobby_"+row.id).is(":checked")?1:0;
+		statement_values.push(row);
+	});
+
+  //console.log(statement_values);
+
+	return statement_values;
+};
+
+var init_save_button = function(){
+
+	$(".statement_submit_btn .common_btn").unbind("touchstart click").bind("touchstart click",function(){
+
+		var sheet_data = {};
+		
+		var sheet_id = (Math.floor(100000000 + Math.random() * 900000000));
+
+		var sheet_name = generate_sheet_name();
+		
+		var show_in_lobby = $(".show_in_lobby").prop('checked');
+
+		var html = $("#personal_statement_box").html();
+
+		var personal_statement_id = $("#single_statement_id").val();
+
+		sheet_data.id= personal_statement_id;
+		sheet_data.is_active= true;
+		sheet_data.sheet_id= sheet_id;
+		sheet_data.sheet_number= 0;
+		sheet_data.sheet_name= sheet_name;
+		sheet_data.html= html;
+		sheet_data.attr= "statement";
+		sheet_data.show_in_lobby = show_in_lobby?1:0;
+
+		sheet_data.extras = serialize_statement_values();
+
+		//console.log(sheet_data);
+
+		var xhr = $.ajax({
+	        url: site_url+"/statement-values/save_statement",
+	        data:sheet_data,
+	        method:"POST",
+	        success: function(response) {
+	        	
+	        	if(response.status==1){
+	        		$("#single_statement_id").val(response.data.id);
+	        	}
+
+	        	$.notify("Personal Statement Added successfully", {
+                        type:'success',
+                        z_index: 999999999,
+                });
+	        }
+	    });
+
+	});
+};
+
+
+var addto_lobby = function(){
+
+	$('.addto_lobby').on('click', function(event){
+		//alert("Reached here.....");
+		//console.log('clicked...');
+		var show_in_lobby= ($(this).prop('checked'))?1:0;
+		addto_lobby_request(this,show_in_lobby);
+	});
+
+};
+
+var addto_lobby_request = function(elem, show_in_lobby){
+
+	var sheet_data = {};
+	sheet_data.id= $(elem).data("value");
+	sheet_data.show_in_lobby=show_in_lobby;
+	var xhr = $.ajax({
+        url: site_url+"/statement-values/addto_lobby",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+        	//console.log(response);
+        }
+    });
+
+};
+
+function statement_values(){
+
+    $(".statements_values").unbind("touchstart click").bind("touchstart click",function(){
+        var noofempty = checking2();
+
+        if (noofempty > 0) {
+            pop_up_error("You didn't enter anything in input box, Please enter and then continue.");
+            return false;
+        }
+
+        var a = $(this);
+        var b = $("#light-box");
+        var c = b.find('.modal-body');
+        var h = b.find('.modal-header');
+        var f = b.find('.modal-footer');
+        c.empty();
+        f.empty();
+        h.empty();
+
+        h.html('<h3> Personal Statement </h3>');
+
+        var body = '<div class="template-form">';
+        body += '<div class="statement-section statement-editing-area">';
+        body += '<div class="statement-small-txt"><span>Write down your</span> personal statement</div>';
+        body +='<div contenteditable="true" class="contenteditable-textarea contenteditable_statement" id="statement"></div>';
+        body +='<div class="statement-panel sheet-panel">';
+        body +='<div>';
+        body +='<div class="plus_sheet"><button type="button">+</button></div>';
+        body +='<div class="sheet_pages" data-attr="statement"></div>';
+        body +='</div>';
+        body +='</div>';
+        body +='</div>';
+        body += '<div class="values-section statement-editing-area">';
+        body += '<div class="values-heading"><h3> Values </h3></div>';
+        body += '<div class="statement-small-txt"><span>Write down your</span> values</div>';
+        body += '<div><div contenteditable="true" class="contenteditable-textarea contenteditable_values" id="values"></div></div>';
+
+        body +='<div class="values-panel">';
+        body +='<div>';
+        body +='<div class="plus_sheet"><button type="button">+</button></div>';
+        body +='<div class="sheet_pages" data-attr="values"></div>';
+        body +='</div>';
+        body +='</div>';
+
+        body += '</div>';
+
+        c.html(body);
+
+        var button = $('<button class="btn btn-warning" id="statement-cancel" style="margin-right:0.5em;">Cancel</buton> <button class="btn btn-success" id="statement-save">Done</buton>');
+        
+        f.html(button);
+
+        b.modal();
+
+        $('#statement-cancel').on('touchstart click', function() {
+            b.modal('hide');
+        });
+
+        $('#statement-save').on('touchstart click', function() {
+            b.modal('hide');
+        });
+
+        $(".statement-panel .plus_sheet button").on('touchstart click', function() {
+          //alert("reached here .....");
+           // console.log("reached here ......");
+            var elem=$(this).parents(".statement-panel");
+            //console.log(elem);
+            var sheet_pages=$(elem).find(".sheet_pages");
+            var sheet_data=prepare_create_sheet(elem);
+            
+            sheet_pages.append(sheet_data.html);
+            var last_sheet=sheet_pages.find(".sheet-container:last");
+            //console.log(last_sheet);
+            //last_sheet.addClass("active");
+            sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+            sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+            $(elem).parents(".statement-editing-area").find(".contenteditable-textarea").html('');
+
+            save_sheet(last_sheet, sheet_pages);
+            init_sheet_toolbar();
+            apply_overflow();
+        });
+
+
+        $(".values-panel .plus_sheet button").on('touchstart click', function() {
+
+            var elem=$(this).parents(".values-panel");
+            var sheet_pages=$(elem).find(".sheet_pages");
+            var sheet_data=prepare_create_sheet(elem);
+            
+            sheet_pages.append(sheet_data.html);
+            var last_sheet=sheet_pages.find(".sheet-container:last");
+            //last_sheet.addClass("active").attr("data-is_active",true);
+
+            sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+            sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+            $(elem).parents(".statement-editing-area").find(".contenteditable-textarea").html('');
+
+
+            save_sheet(last_sheet, sheet_pages);
+            init_sheet_toolbar();
+            apply_overflow();
+        });
+
+
+        //sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+        //sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+
+        getAllSheet({},function(data){
+
+            $.each(data,function(i,d){
+                
+                //console.log(d);
+
+                if(d.meta_attr.attr=='statement'){
+
+                    //console.log("statement");
+                    var elem=$(".statement-panel");
+                    //console.log(elem);
+                    var sheet_pages=$(elem).find(".sheet_pages");
+                    var sheet_data=render_sheet(d.meta_attr);
+                    //console.log(sheet_data.html);
+                    /*if(d.is_active==1){
+                        
+                        console.log($(elem).parent().find("textarea"));
+
+                        $(elem).parent().find("textarea").val(d.meta_value);
+                    }*/
+
+                    sheet_pages.append(sheet_data.html); 
+
+                    //if(d.is_active==1){
+                        
+                        //console.log($(elem).parent().find("textarea"));
+
+                        sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+                        sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+                        $(elem).parent().find(".contenteditable-textarea").html(d.meta_value);
+                    //}
+
+                }else{
+
+                    //console.log("values");
+                    //console.log(d.meta_attr);
+                    var elem=$(".values-panel");
+                    //console.log(elem);
+                    var sheet_pages=$(elem).find(".sheet_pages");
+                    var sheet_data=render_sheet(d.meta_attr);
+                    /*if(d.is_active==1){
+                        console.log($(elem).parent().find("textarea"));
+                        $(elem).parent().find("textarea").val(d.meta_value);
+                    }*/
+
+                    sheet_pages.append(sheet_data.html); 
+
+                    sheet_pages.find(".sheet-container").removeClass("active").attr("data-is_active",false);
+                    sheet_pages.find(".sheet-container:last").addClass("active").attr("data-is_active",true);
+                    $(elem).parent().find(".contenteditable-textarea").html(d.meta_value);
+                }
+            });
+            $.tloader("hide");
+            init_sheet_toolbar();
+            apply_overflow();
+        });
+
+        $(".contenteditable-textarea#statement, .contenteditable-textarea#values").bind('focus', function() {
+             $(".sheet-action").hide();
+        });
+
+        $(".contenteditable-textarea#statement, .contenteditable-textarea#values").bind('input propertychange', function() {
+
+          var current_sheet=$(this).parents(".statement-editing-area").find(".sheet-container.active");
+
+          var sheet_container=$(this).parents(".statement-editing-area").find(".sheet_pages");
+          
+          //console.log(sheet_container);
+
+          save_sheet(current_sheet, sheet_container);
+
+        });
+
+    });
+}
+
+var render_sheet =  function(sheet_row){
+        
+    var sheet_class=sheet_row.is_default?"sheet-container default_sheet":"sheet-container";
+    
+    //console.log(sheet_row);
+
+    if(sheet_row.is_active=="true"){
+      sheet_class+=" active";
+    }
+    
+    var html="<div class='"+sheet_class+"' data-is_active='"+sheet_row.is_active+"' data-sheet_id='"+sheet_row.sheet_id+"' data-sheet_number='"+sheet_row.sheet_number+"' data-sheet_name='"+sheet_row.sheet_name+"'>"+
+      "<span class='sheet-name'><span class='sheetname'>"+sheet_row.sheet_name+"</span> <span class='action-trigger'></span></span>"+
+        "<ul class='sheet-action' data-sheet_id='"+sheet_row.sheet_id+"'>";
+        html+="<li class='deletsheet'>Delete</li>";
+        html+="<li class='duplicatesheet'>Duplicate</li>"+
+          "<li class='renamesheet'>Rename</li>"+
+        "</ul>"+
+      "</div>";
+
+    var sheet_data={};
+      
+    sheet_data.html=html;
+      
+    sheet_data.sheet={id:sheet_row.sheet_id, sheet_number:sheet_row.sheet_number, sheet_name:sheet_row.sheet_name, is_active:sheet_row.is_active};
+
+    return sheet_data;
+
+};
+
+var prepare_create_sheet = function(elem){
+  //alert(elem);
+  var total_sheets=$(elem).find(".sheet-container").length;
+
+  var is_default=(!total_sheets)?true:false;
+
+  var id=(is_default)?"default":(Math.floor(100000000 + Math.random() * 900000000));
+
+  var sheet_number=$(elem).find(".sheet-container").length+1;
+  
+  var sheet_name=generate_sheet_name();
+  //console.log(sheet_name);
+  $(elem).find(".sheet-container").removeClass("active");
+
+  var sheet_row = {};
+  sheet_row.sheet_id=id;
+  sheet_row.sheet_number=sheet_number;
+  sheet_row.sheet_name=sheet_name;
+  sheet_row.is_default=is_default;
+  sheet_row.is_active=is_default;
+
+  return render_sheet(sheet_row);
+
+};
+
+var generate_sheet_name = function(){
+
+  var today = new Date();
+  var dd = today.getDate();
+  var mm = today.getMonth()+1; //January is 0!
+
+  var yyyy = today.getFullYear();
+  if(dd<10){
+      dd='0'+dd;
+  } 
+  if(mm<10){
+      mm='0'+mm;
+  } 
+  var today = dd+'.'+mm+'.'+yyyy;
+  return today;
+};
+
+var apply_overflow = function(){
+
+    $(".values-panel .sheet_pages,.statement-panel .sheet_pages").each(function(i,e){
+
+      var sheet_panel = $(e);
+      //console.log(sheet_panel);
+      var length = sheet_panel.find(".sheet-container").length;
+      //console.log(length);
+      var sheet_action = $(e).find(".sheet-action:visible");
+
+      if(sheet_action.length){
+        sheet_panel.css("overflow-y", "");
+        sheet_panel.css("overflow-x", "");
+      }else if(length > 5){
+        sheet_panel.css("overflow-y", "hidden");
+        sheet_panel.css("overflow-x", "scroll");
+      }
+
+     //console.log(sheet_panel);
+
+    });
+}
+
+var apply_Personaloverflow = function(force){
+
+    console.log("overflow applied...");
+
+    console.log("force:"+force);
+
+    if(force){
+      var sheet_panel = $(".sheets-panel .sheet_pages");
+      sheet_panel.css("overflow-y", "");
+      sheet_panel.css("overflow-x", "");
+    }else{
+
+      $(".sheets-panel .sheet_pages").each(function(i,e){
+
+        var sheet_panel = $(e);
+        //console.log(sheet_panel);
+        var length = sheet_panel.find(".sheet-container").length;
+        //console.log(length);
+        var sheet_action = $(e).find(".sheet-action:visible");
+        //console.log(sheet_action);
+        if(sheet_action.length){
+          sheet_panel.css("overflow-y", "");
+          sheet_panel.css("overflow-x", "");
+        }else if(length > 15){
+          sheet_panel.css("overflow-y", "hidden");
+          sheet_panel.css("overflow-x", "scroll");
+        }
+
+       //console.log(sheet_panel);
+
+      });
+    }
+}
+
+
+var savePersonalSheet = function(sheet_data){
+
+  if(savexhr && savexhr.readyState != 4){
+      savexhr.abort();
+  }
+
+  savexhr = $.ajax({
+     
+      url: site_url+"/statement-values/save-personal-statement-values",
+
+      data:sheet_data,
+      
+      method:"POST",
+      
+      success: function(response) {
+        console.log(sheet_data);
+          //do something
+      }
+  });
+
+}
+
+var init_sheet_toolbar = function(){
+
+        $(".statement-editing-area .sheet-name").unbind("click").click(function(){
+            $(this).parent().parent().find(".sheet-container").removeClass("active");
+
+            $(this).parent().addClass("active");
+
+            $(".sheet-action").hide();
+
+            //sheet_pages
+            var attr = $(this).parents(".sheet_pages").data("attr");
+
+            var sheet_data = $(this).parent().data();
+            
+            sheet_data.attr=attr;
+
+            var note_editable=$(this).parents(".statement-editing-area").find(".contenteditable-textarea");
+            //var note_editable=$(this).parents(".habits-container").find("textarea");
+
+            getSheet(sheet_data, function(data){
+                
+                if(data){
+                    note_editable.html(data.meta_value);
+                }
+
+            });
+
+            apply_overflow();
+        });
+
+        $(".statement-editing-area .action-trigger").unbind("click").click(function(e){
+
+            e.stopPropagation();
+            
+            $(this).parent().parent().find(".sheet-container").removeClass("active");
+
+            $(this).parent().addClass("active");
+
+            $(".sheet-action").hide();
+
+            $(this).parents(".sheet-container:first").find(".sheet-action").show();
+            apply_overflow();
+
+        });
+
+
+        $(".statement-editing-area .deletsheet").unbind("click").click(function(){
+
+          var sheet_pages = $(this).parents(".sheet_pages").find(".sheet-container");
+          
+          if(sheet_pages.length==1){
+            alert("Sorry, You can not delete this sheet.");
+            //pop_up_error("Sorry, You can not delete this sheet.");
+            return false;
+          }
+
+          //console.log(sheet_pages.length);
+
+
+          var sheet = $(this).parents(".sheet-container:first");
+          
+          var attr = sheet.parents(".sheet_pages").data("attr");
+
+          //console.log(sheet);
+          
+          var last_sheet = sheet.next(".sheet-container");
+          
+          if(last_sheet.length){
+          	//console.log("next found.");
+            last_sheet.addClass("active");
+          }else if(!last_sheet.length){
+          	//console.log("prev found.");
+          	var last_sheet = sheet.prev(".sheet-container");
+          	last_sheet.addClass("active");
+          }
+          
+          //console.log(attr);
+
+          //console.log(last_sheet);
+
+          sheet.remove();
+
+          var sheet_data = sheet.data();
+          
+          sheet_data.attr = attr;
+
+          deleteSheet(sheet_data);
+
+          
+          //console.log(last_sheet);
+
+
+          //var attr = last_sheet.parents(".sheet_pages").data("attr");
+
+          if(last_sheet){
+            var sheet_data = last_sheet.data();
+
+            sheet_data.attr=attr;
+
+            var note_editable=last_sheet.parents(".statement-editing-area").find(".contenteditable-textarea");
+
+            getSheet(sheet_data, function(data){
+
+                if(data){
+                  note_editable.html(data.meta_value);
+                }
+
+            });
+          }
+
+          apply_overflow();
+
+        });
+
+
+        $(".statement-editing-area .duplicatesheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+
+          //console.log(sheet);
+
+          var sheet_data = sheet.data();
+
+          sheet_data.attr = sheet.parent().data("attr");
+
+          //console.log(sheet_data);
+
+          duplicateSheet(sheet_data,function(data){
+            
+            var value = JSON.parse(data.meta_attr);
+            
+            value.is_active=0;
+
+            var sheet_data = render_sheet(value);
+            
+            sheet.parent().prepend(sheet_data.html);
+            
+            //$(sheet_data.html).insertBefore( sheet );  
+            
+            $(".sheet-action").hide();
+            
+            apply_overflow();
+
+            init_sheet_toolbar();
+
+          });
+
+        });
+
+
+
+        $(".statement-editing-area .renamesheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+          
+          var current_name = sheet.find("span.sheetname").html();
+          
+          var sheetname = prompt("Sheet Name:", current_name);
+
+          if(sheetname){
+            sheet.find("span.sheetname").html(sheetname);
+            sheet.data("sheet_name",sheetname);
+          }
+
+          var sheet_data = sheet.data();
+          
+          sheet_data.attr = sheet.parent().data("attr");
+
+          /*var note_editable=sheet.parents(".note-editing-area").find(".note-editable");
+
+          var content = note_editable.html();
+          
+          sheet_data.html = content;*/
+          
+          $(".sheet-action").hide();
+           apply_overflow();
+
+           renameSheet(sheet_data);
+
+        });
+
+};
+
+
+var init_personal_sheet_toolbar = function(){
+
+        $(".personal-statement .sheet-name").unbind("click").click(function(){
+           // alert("raeched here ......");
+            apply_Personaloverflow(true);
+            
+            $(this).parent().parent().find(".sheet-container").removeClass("active");
+
+            $(this).parent().addClass("active");
+
+            $(".sheet-action").hide();
+
+            //sheet_pages
+            var attr = $(this).parents(".sheet_pages").data("attr");
+
+            var sheet_data = $(this).parent().data();
+            
+            sheet_data.attr=attr;
+
+            var note_editable=$(this).parents(".habits-container").find(".contenteditable-textarea");
+
+            getPersonalStatementSheet(sheet_data, function(data){
+                
+                if(data){
+                    note_editable.html(data.meta_value);
+                }
+
+            });
+
+        });
+
+        $(".action-trigger").unbind("click").click(function(e){
+
+            e.stopPropagation();
+            $(this).parent().parent().parent().find(".sheet-container").removeClass("active");
+
+            $(this).parent().parent().addClass("active");
+           
+            $(".sheet-action").hide();
+
+            $(this).parents(".sheet-container:first").find(".sheet-action").show();
+            
+           apply_Personaloverflow(true);
+
+        });
+
+
+        $(".personal-statement .deletsheet").unbind("click").click(function(){
+
+         
+          var sheet_pages = $(this).parents(".sheet_pages").find(".sheet-container");
+          
+          if(sheet_pages.length==1){
+            alert("Sorry, You can not delete this sheet.");
+            //pop_up_error("Sorry, You can not delete this sheet.");
+            return false;
+          }
+
+          //console.log(sheet_pages.length);
+
+
+          var sheet = $(this).parents(".sheet-container:first");
+          
+          var attr = sheet.parents(".sheet_pages").data("attr");
+
+          //console.log(sheet);
+          
+          var last_sheet = sheet.next(".sheet-container");
+          
+          if(last_sheet.length){
+            //console.log("next found.");
+            last_sheet.addClass("active");
+          }else if(!last_sheet.length){
+            //console.log("prev found.");
+            var last_sheet = sheet.prev(".sheet-container");
+            last_sheet.addClass("active");
+          }
+          
+          //console.log(attr);
+
+          //console.log(last_sheet);
+
+          sheet.remove();
+
+          var sheet_data = sheet.data();
+          
+          sheet_data.attr = attr;
+
+          deletePersonalSheet(sheet_data);
+
+          
+          //console.log(last_sheet);
+
+
+          //var attr = last_sheet.parents(".sheet_pages").data("attr");
+
+          if(last_sheet){
+            var sheet_data = last_sheet.data();
+
+            sheet_data.attr=attr;
+
+            var note_editable=last_sheet.parents(".habits-container").find(".contenteditable-textarea");
+
+            getPersonalStatementSheet(sheet_data, function(data){
+
+                if(data){
+                  note_editable.html(data.meta_value);
+                }
+
+            });
+          }
+
+          apply_Personaloverflow(true);
+
+        });
+
+
+        $(".personal-statement .duplicatesheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+
+          //console.log(sheet);
+
+          var sheet_data = sheet.data();
+
+          sheet_data.attr = sheet.parent().data("attr");
+
+          //console.log(sheet_data);
+
+          duplicatePersonalSheet(sheet_data,function(data){
+            
+            var value = JSON.parse(data.meta_attr);
+            
+            value.is_active=0;
+
+            var sheet_data = render_sheet(value);
+            
+            sheet.parent().prepend(sheet_data.html);
+            
+            //$(sheet_data.html).insertBefore( sheet );  
+            
+            $(".sheet-action").hide();
+            
+            apply_Personaloverflow(true);
+
+            init_personal_sheet_toolbar();
+
+          });
+
+        });
+
+
+
+        $(".personal-statement .renamesheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+          
+          var current_name = sheet.find("span.sheetname").html();
+          
+          var sheetname = prompt("Sheet Name:", current_name);
+
+          if(sheetname){
+            sheet.find("span.sheetname").html(sheetname);
+            sheet.data("sheet_name",sheetname);
+          }
+
+          var sheet_data = sheet.data();
+          
+          sheet_data.attr = sheet.parent().data("attr");
+
+          /*var note_editable=sheet.parents(".note-editing-area").find(".note-editable");
+
+          var content = note_editable.html();
+          
+          sheet_data.html = content;*/
+          
+          $(".sheet-action").hide();
+           apply_Personaloverflow(true);
+
+           renamePersonalSheet(sheet_data);
+
+        });
+
+};
+
+
+var personal_save_sheet = function(sheet, sheet_pages){
+
+  //console.log(sheet_pages);
+ // console.log(sheet);
+
+  var note_editable=sheet_pages.parents(".habits-container").find(".contenteditable-textarea");
+
+  var content = note_editable.html();
+  //alert(content);
+  //console.log(content);
+
+  if(last_sheet_data=sheet.data()){
+    var _attr = sheet_pages.data("attr");
+    last_sheet_data.html=content;
+    last_sheet_data.attr=_attr;
+    savePersonalSheet(last_sheet_data);
+  }
+
+};
+
+
+var save_sheet = function(sheet, sheet_pages){
+
+  //console.log(sheet_pages);
+ // console.log(sheet);
+
+  var note_editable=sheet_pages.parents(".statement-editing-area").find(".contenteditable-textarea");
+
+  var content = note_editable.html();
+  
+  //console.log(content);
+
+  if(last_sheet_data=sheet.data()){
+    var _attr = sheet_pages.data("attr");
+    last_sheet_data.html=content;
+    last_sheet_data.attr=_attr;
+    saveSheet(last_sheet_data);
+  }
+
+};
+
+var savexhr;
+
+var addSheet = function(sheet_data){
+  if(sheet_data.attr=='status'){
+
+    var container = $(editor[0]).parent();
+    
+    var prefill_status = $("#prefill_status").html();
+    
+    //console.log(prefill_status);
+
+    container.find(".note-editable").html(prefill_status);
+    //console.log(editor[0]);
+  }
+
+},
+deleteSheet = function(sheet_data){
+  
+  //console.log("sheet deleted...");
+  
+  var auto_save_id = $("#temp_id").val();
+    
+    sheet_data.auto_save_id=auto_save_id;
+
+
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/attr/delete_sheet",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+
+        }
+    });
+
+  //console.log(sheet_data);
+},
+
+deletePersonalSheet = function(sheet_data){
+  
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/attr/delete_personal-sheet",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+
+        }
+    });
+    },
+savePersonalSheet = function(sheet_data){
+ 
+  if(savexhr && savexhr.readyState != 4){
+      savexhr.abort();
+  }
+
+  savexhr = $.ajax({
+     
+      url: site_url+"/statement-values/save-personal-statement-values",
+
+      data:sheet_data,
+      
+      method:"POST",
+      
+      success: function(response) {
+          //do something
+      }
+  });
+
+},
+renamePersonalSheet = function(sheet_data){
+
+  if(savexhr && savexhr.readyState != 4){
+      savexhr.abort();
+  }
+
+  savexhr = $.ajax({
+     
+      url: site_url+"/statement-values/attr/personal-rename_sheet",
+
+      data:sheet_data,
+      
+      method:"POST",
+      
+      success: function(response) {
+          //do something
+      }
+  });
+},
+getPersonalStatementSheet = function(sheet_data, callback){
+      
+    var xhr = $.ajax({
+        url: site_url+"/personal-statement-values/attr/get_sheet",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+          console.log(response);
+          if(response.status==1){
+            callback(response.data);
+          }
+
+        }
+    });
+},
+duplicatePersonalSheet = function(sheet_data, callback){
+
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/attr/duplicate_personal-sheet",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+          
+          if(response.status==1){
+            callback(response.data);
+          }
+
+        }
+    });
+
+},
+
+getAllPersonalStatementSheet = function(sheet_data, callback){
+    
+    $.tloader("show","Loading...");
+
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/get-personal-statements-values",
+        data: sheet_data,
+        method: "GET",
+        success: function(response) {
+          
+          if(response.status==1){
+            callback(response.data);
+          }
+        }
+    });
+},
+saveSheet = function(sheet_data){
+  //console.log(sheet_data);
+  var auto_save_id = $("#temp_id").val();
+
+  //console.log("sheet saved...");
+  
+  sheet_data.auto_save_id=auto_save_id;
+
+  //console.log(sheet_data);
+
+  if(savexhr && savexhr.readyState != 4){
+      savexhr.abort();
+  }
+
+  savexhr = $.ajax({
+     
+      url: site_url+"/statement-values/save-statement-values",
+
+      data:sheet_data,
+      
+      method:"POST",
+      
+      success: function(response) {
+          //do something
+      }
+  });
+
+},
+renameSheet = function(sheet_data){
+
+  var auto_save_id = $("#temp_id").val();
+
+  //console.log("sheet renamed...");
+  
+  sheet_data.auto_save_id=auto_save_id;
+
+  //console.log(sheet_data);
+
+  if(savexhr && savexhr.readyState != 4){
+      savexhr.abort();
+  }
+
+  savexhr = $.ajax({
+     
+      url: site_url+"/statement-values/attr/rename_sheet",
+
+      data:sheet_data,
+      
+      method:"POST",
+      
+      success: function(response) {
+          //do something
+      }
+  });
+},
+getSheet = function(sheet_data, callback){
+    
+    //console.log("getting sheet..");
+
+    var auto_save_id = $("#temp_id").val();
+
+    sheet_data.auto_save_id=auto_save_id;
+
+
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/attr/get_sheet",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+          
+          if(response.status==1){
+            callback(response.data);
+          }
+
+        }
+    });
+},
+duplicateSheet = function(sheet_data, callback){
+
+   // console.log("duplicating sheet..");
+
+    var auto_save_id = $("#temp_id").val();
+
+    sheet_data.auto_save_id=auto_save_id;
+    
+   // console.log(sheet_data);
+
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/attr/duplicate_sheet",
+        data:sheet_data,
+        method:"POST",
+        success: function(response) {
+          
+          if(response.status==1){
+            callback(response.data);
+          }
+
+        }
+    });
+
+},
+
+getAllSheet = function(sheet_data, callback){
+    
+    //console.log("getting sheet..");
+
+    var auto_save_id = $("#temp_id").val();
+
+    sheet_data.auto_save_id=auto_save_id;
+
+    $.tloader("show","Loading...");
+
+    var xhr = $.ajax({
+        url: site_url+"/statement-values/get-statements-values",
+        data: sheet_data,
+        method: "GET",
+        success: function(response) {
+          
+          if(response.status==1){
+            callback(response.data);
+          }
+        }
+    });
+}
+

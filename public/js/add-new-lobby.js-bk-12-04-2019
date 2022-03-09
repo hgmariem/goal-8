@@ -1,0 +1,805 @@
+$(document).ready(function(){
+
+       /* $('.habit-start-date').pickadate({
+          clear: '',
+          close: 'Close',
+          onSet: function(thingSet) {
+          $('#checkChanged').val(1);
+          var action = 1;
+          windowloadaleart(action);
+          },
+          onRender: function() {
+          $('.picker__box').prepend('<a href="javascript:;" class="close_calender">X</a>');
+          $('.close_calender').on('click', function() {
+          var esc = $.Event("keydown", {keyCode: 27});
+          $("body").trigger(esc);
+          });
+          }
+        });
+        */
+
+        add_to_lobby();
+        habitLobby();
+        saveTaskSchedule();
+        cancelTaskTemplate();
+        taskLobby();
+        showAndHideInLobby();
+        saveLobbyModal();
+        cancelLobbyModal();
+
+});
+  
+var add_to_lobby = function()
+{
+        $(".addLobby").click(function(){
+        var b = $("#addLobby");
+        var c = b.find('.modal-body');
+        var h = b.find('.modal-header');
+        var f = b.find('.modal-footer');
+        c.empty();
+        f.empty();
+        h.empty();
+
+        h.html('<h3> Add From Lobby </h3>');
+
+        var body = '<div class="btn-group lobbyPart">'+
+        '<button type="button" name="att" id="lobby_habit" class="btn type-button btn-primary active" data-id="1">Habit</button>'+
+        '<button type="button" name="att" id="lobby_task" class="btn type-button btn-primary" data-id="2">Task</button>'+
+        '<button type="button" name="att" id="lobby_character" class="btn type-button btn-primary" data-id="3">Character</button>'+
+        '</div><br><br>';
+
+        body += '<div id="habit_lobby" style="text-align: center;">'+
+        '<form method="post" id="habit_lobby_form">'+
+        '<div class="row">'+
+        '<div class="col-sm-6 col-sm-push-3">'+
+        '<div class="form-group">'+
+        '<select name="lobby_undefined" id="select_lobby_habit" class="form-control">'+ 
+        '</select> '+
+        '</div>'+
+        '<div class="clearfix"></div>'+
+        '<div class="fullhalfheightsec2" style="height: auto;">'+
+        '<div class="form-group">'+
+        '<div class="goal-row goal-row-parent">'+
+        '<div class="goal-top" data-id="goal-top-">'+
+        '<a class="type yellow" href="#" data-value="Undefined" data-id="1"><span class="goal-title goal-title-sub-text">Habit</span></a>'+
+        '<a class="lobby green" href="#" id="habit-eye" data-target="#show-lobby" data-toggle="modal"  data-value="fa fa-eye"><span class="goal-title goal-title-sub-text"><i class="fa fa-eye"></i></span></a>'+
+        '<a class="habit-schedule settings"  data-goal-type="" data-toggle="modal" data-target="#light_box"  href="#" id="sub_habit_type" data-habit-type="1;7"><i class="fa fa-cog"></i></a>'+
+        '<input class="date fieldset__input js__datepicker habit-start-date picker__input" type="text" name="sub_habit_start_date" value="' + current_date() + '" readonly>'+
+        '</div>'+
+        '</div>'+
+        '<div class="input-group control-group after-add-more-habit">'+
+        '<input type="hidden" name="id" id="sub_goals_id" value="">'+                   
+        '<input type="text" name="sub_goals" class="form-control sub-goal" placeholder="Name of sub goals......">'+
+        '</div>'+
+        '</div>'+
+        '</div>'+
+        '<div class="clearfix"></div>'+
+        '</div>'+
+        '</div>'+
+        '</form>'+
+        '</div>';
+        c.html(body);
+        var button = $('<div class="lobby-footer"><button type="button" class="btn btn-warning" id="lobby-template-cancel" style="margin-right:0.5em;">Cancel</buton> <button  type="button" class="btn btn-success" id="lobby-template-save">Done</buton></div>');
+        f.html(button);
+
+        //$(".ends_on_date").datepicker();
+
+            $.ajax({
+              url: '/goals/type',
+              type: 'get',
+              dataType: 'json',
+              success: function(response)
+              {
+                var len = 0;
+                $('#select_lobby_habit').empty(); // Empty <tbody>
+                if(response['data'] != null){
+                  len = response['data'].length;
+                }
+
+                if(len > 0){
+
+                  for(var i=0; i<len; i++){
+                    var id = response['data'][i].id; 
+                    var name = response['data'][i].name;
+
+                    var tr_str = "<option value='"+id+"'>" +name + "</option>";
+
+                    $("#select_lobby_habit").append(tr_str);
+                  }
+                }
+              }
+            })
+
+            $(".begin_on_date").datepicker();
+            $(".ends_on_date").datepicker();
+          typeChange();
+          save_subGoal();
+          parentChange();
+          habitLobby();
+          taskLobby();
+          showAndHideInLobby();
+          saveLobbyModal();
+          cancelLobbyModal();
+          
+        });
+}
+
+
+var typeChange = function()
+{
+    $(".type-button").click(function(){
+          var t = $("#addLobby");
+          var z = t.find(".goal-top");
+          z.empty();
+          $(".type-button").removeClass("active").addClass("inactive");
+          $(this).removeClass("inactive").addClass("active");
+
+          var type = $(this).attr("data-id");
+          if(type == 1)
+          {
+     				         var html = '<a class="type yellow" href="#" data-value="Undefined" data-id="1"><span class="goal-title goal-title-sub-text">Habit</span></a>'+
+      							'<a class="lobby green" href="#" id="habit-eye" data-target="#show-lobby" data-toggle="modal"  data-value="fa fa-eye"><span class="goal-title goal-title-sub-text"><i class="fa fa-eye"></i></span></a>'+
+      							'<a class="habit-schedule settings"  data-goal-type="" data-toggle="modal" data-target="#light_box"  href="#" id="sub_habit_type" data-habit-type="1;7"><i class="fa fa-cog"></i></a>'+
+      							'<input class="date fieldset__input js__datepicker habit-start-date picker__input" type="text" name="sub_habit_start_date" value="' + current_date() + '" readonly>';
+      							z.html(html);
+      							$("#habit_lobby_form")[0].reset();
+          }
+          else if(type == 2)
+          {
+                    var html = '<a class="type yellow" href="#" data-value="Undefined" data-id="2"><span class="goal-title goal-title-sub-text">Task</span></a>'+
+                    '<a class="lobby green" href="#" data-toggle="modal"  data-target="#show-lobby"  data-value="fa fa-eye"><span class="goal-title goal-title-sub-text"><i class="fa fa-eye"></i></span></a>'+
+                    '<a class="task-schedule settings" data-goal-type="" data-toggle="modal" data-target="#info-light-box"  href="#" id="sub_habit_type" data-habit-type="1;7"><i class="fa fa-cog"></i></a>'+
+                    '<input class="date fieldset__input js__datepicker habit-start-date picker__input" type="text" name="sub_habit_start_date" value="' + current_date() + '" readonly>';
+                    z.html(html);
+                    $("#habit_lobby_form")[0].reset();
+          }
+          else
+          {
+                    var html = '<a class="type yellow" href="#" data-value="Undefined" data-id="3"><span class="goal-title goal-title-sub-text">Character</span></a>'+
+                    '<a class="lobby green" href="#" data-toggle="modal"  data-target="#show-lobby"   data-value="fa fa-eye"><span class="goal-title goal-title-sub-text"><i class="fa fa-eye"></i></span></a>';
+                    z.html(html);
+                    $("#habit_lobby_form")[0].reset();
+          }
+
+                      habitLobby();
+                      taskLobby();
+                      showAndHideInLobby();
+                      changeDate();
+})
+  
+                      changeDate();
+
+  }
+
+
+
+
+
+var changeDate = function()
+{
+  $(".habit-start-date").datepicker({
+                dateFormat: 'd MM, yy',
+                onSelect: function() {
+                var sub_goals = $(".sub-goal").val();
+                var goal_id   = $("#sub_goals_id").val();
+                var type = $(".lobbyPart .type-button.active").attr("data-id");
+
+            if(sub_goals != "" && goal_id != "")
+            {
+              $.tloader("show","Loading...");
+              var form_data = $("#habit_lobby_form").serialize();
+              console.log(form_data);
+              $.ajax({
+                  url : site_url+"/goals/add-lobby",
+                  method : "post",
+                  data : form_data+"&type="+type,
+                  success : function(res)
+                  {
+                    if(res.status == 1)
+                    {
+                       $.notify(res.msg, {
+                        type:'success',
+                        z_index: 999999999,
+                        });
+
+                        $.tloader("hide");
+                    }
+              
+                  }
+      })
+            }
+          }
+      });
+}
+
+
+ /*----------------------------------------Add Habit Loop---------------------------------*/
+
+
+var habitLobby = function()
+{
+          $(".habit-schedule ").click(function(){
+          var subgoal = $(".sub-goal").val();
+          if(subgoal == "")
+          {
+              alert("Please Enter sub goals here");
+              return false;
+          }
+            var goal_id = $(this).attr("data-value");
+              $.ajax({
+                    url : site_url+"/goals/get-habit-type/"+goal_id,
+                    method : "get",
+                    success : function(res){
+                    console.log(res);
+                if($.isEmptyObject(res))
+                {
+                    $("#add_text_type").val('');
+                    $("#week").removeClass('inactive').addClass('active');
+                    $("#routine").removeClass('active').addClass('inactive');
+                    $(".day-options").removeClass('show').addClass('hide');
+                }
+                else
+                {
+              //console.log("else reached here............");
+                    $("#add_text_type").val(res.text);
+                    if(res.type == 1)
+                    {
+                        $("#week").removeClass('inactive').addClass('active');
+                        $("#routine").removeClass('active').addClass('inactive');
+                        $(".day-options").removeClass('show').addClass('hide');
+                    }
+                    else
+                    {
+                        $("#week").removeClass('active').addClass('inactive');
+                        $("#routine").removeClass('inactive').addClass('active');
+                        $(".day-options").removeClass('hide').addClass('show');
+                        var numbersArray = res.value.split(",");
+                          if(jQuery.inArray("0",numbersArray) >=0)
+                            {
+                                $(".day-options #checkbox-1-1").prop('checked', true);  
+                            }
+                          if(jQuery.inArray("1",numbersArray) >=0)
+                            {
+                              $(".day-options #checkbox-1-2").prop('checked', true);  
+                            }
+                          if(jQuery.inArray("2",numbersArray) >=0)
+                            {
+                              $(".day-options #checkbox-1-3").prop('checked', true);   
+                            }
+                          if(jQuery.inArray("3",numbersArray)>=0)
+                            {
+                              $(".day-options #checkbox-1-4").prop('checked', true); 
+                            }
+                          if(jQuery.inArray("4",numbersArray)>=0)
+                            {
+                              $(".day-options #checkbox-1-5").prop('checked', true); 
+                            }
+                          if(jQuery.inArray("5",numbersArray)>=0)
+                            {
+                              $(".day-options #checkbox-1-6").prop('checked', true); 
+                            }
+                          if(jQuery.inArray("6",numbersArray)>=0)
+                            {
+                              $(".day-options #checkbox-1-7").prop('checked', true);
+                            }
+                       }
+                   }
+                }
+              })
+                            checkHabitSchedule();
+                            habitSchedule(goal_id);
+          });
+}
+
+
+
+var taskLobby = function()
+{
+        $(".task-schedule").click(function(){
+        var subgoal = $(".sub-goal").val();
+        if(subgoal == "")
+        {
+            alert("Please Enter sub goals here");
+            return false;
+        }
+        var task_id = $(this).attr("data-id");
+        //alert(task_id);
+        $.ajax({
+        url : site_url+"/goals/get-task-loop/"+task_id,
+        method : "get",
+        success :function(res){
+        console.log(res);
+        if($.isEmptyObject(res))
+        {
+        //console.log(res);
+              $("#info-light-box #_repeat_qty").val('1');
+              $("#info-light-box #_task_name").val('');
+              $("#info-light-box #_task_id").val(task_id);
+              $("#_repeat_frequency option[value='months']").attr('selected', 'selected');
+              $("#info-light-box .weeks").removeClass("show").addClass("hide");
+              $("#info-light-box .years").removeClass("show").addClass("hide");
+              $("#info-light-box .months").removeClass("hide").addClass("show");
+              $("#info-light-box #_add_suffix").prop("checked",true);
+              $("span._repeat_on_suffix").html("month"); 
+        }
+        else
+        {
+              $("#info-light-box #_repeat_qty").val(res.repeat_qty);
+              $("#info-light-box #_task_name").val(res.task_name);
+              $("#info-light-box #_task_id").val(res.task_id);
+        //$("#_repeat_frequency option[value='months']").attr('selected', 'selected');
+        if(res.repeat_frequency == "months")
+        { 
+            $("#_repeat_frequency option"). removeAttr("selected");
+            $("#_repeat_frequency option[value='"+res.repeat_frequency+"']").attr('selected', 'selected');
+            $("#info-light-box .weeks").removeClass("show").addClass("hide");
+            $("#info-light-box .years").removeClass("show").addClass("hide");
+            $("#info-light-box .months").removeClass("hide").addClass("show");
+                  if(res.add_suffix == 1)
+                  {
+                    $("#info-light-box #_add_suffix").prop("checked",true);
+                  }
+                    $("span._repeat_on_suffix").html("month"); 
+            if(res.repeat_on == "thisday")
+            {
+                  $(".months #repeat_on_thisday").prop("checked",true);
+                if(res.begin_on == "date")
+                {
+                    $(".begins-section #begin_on_date").prop("checked",true);
+                    var begin_on_value = GetFormattedDate(res.begin_on_value);
+                    $("#info-light-box #begin_on_picker").val(begin_on_value);
+
+                }
+                else
+                {
+                $(".begins-section #begin_on_now").prop("checked",true);
+                }
+            }
+            else if(res.repeat_on == "firstday")
+            {
+                          $(".months #repeat_on_firstday").prop("checked",true);
+                        if(res.begin_on == "date")
+                        {
+                            $(".begins-section #begin_on_date").prop("checked",true);
+                            var begin_on_value = GetFormattedDate(res.begin_on_value);
+                            $("#info-light-box #begin_on_picker").val(begin_on_value);
+                        }
+                        else
+                        {
+                            $(".begins-section #begin_on_now").prop("checked",true);
+                        }
+            }
+            else
+            {
+                  $(".months #repeat_on_lastday").prop("checked",true);
+                  if(res.begin_on == "date")
+                  {
+                        $(".begins-section #begin_on_date").prop("checked",true);
+                        var begin_on_value = GetFormattedDate(res.begin_on_value);
+                        $("#info-light-box #begin_on_picker").val(begin_on_value);
+                  }
+                  else
+                  {
+                        $(".begins-section #begin_on_now").prop("checked",true);
+                  }
+            }
+        }
+        else if(res.repeat_frequency == "years")
+        {
+            $("#_repeat_frequency option"). removeAttr("selected");
+            $("#_repeat_frequency option[value='"+res.repeat_frequency+"']").attr('selected', 'selected');
+            $("#info-light-box .weeks").removeClass("show").addClass("hide");
+            $("#info-light-box .years").removeClass("hide").addClass("show");
+            $("#info-light-box .months").removeClass("show").addClass("hide");
+        if(res.add_suffix == 1)
+        {
+              $("#info-light-box #_add_suffix").prop("checked",true);
+        }
+              $("span._repeat_on_suffix").html("year"); 
+        if(res.repeat_on == "thisday")
+        {
+        if(res.begin_on == "date")
+        {
+              $(".begins-section #begin_on_date").prop("checked",true);
+              var begin_on_value = GetFormattedDate(res.begin_on_value);
+              $("#info-light-box #begin_on_picker").val(begin_on_value);
+        }
+        else
+        {
+            $(".begins-section #begin_on_now").prop("checked",true);
+        }
+            $(".years #repeat_on_thisday").prop("checked",true);
+        }
+        else if(res.repeat_on == "firstday")
+        {
+            $(".years #repeat_on_firstday").prop("checked",true);
+            $("#info-light-box #begin_on_now").prop("checked",false);
+            $("#info-light-box #begin_on_now").attr('disabled', true);
+            $("#info-light-box #begin_on").prop("checked",true);
+        }
+        else
+        {
+            $(".years #repeat_on_lastday").prop("checked",true);
+            $("#info-light-box #begin_on_now").prop("checked",false);
+            $("#info-light-box #begin_on_now").attr('disabled', true);
+            $("#info-light-box #begin_on").prop("checked",true);
+        }
+        }
+        else
+        {
+            $("#_repeat_frequency option"). removeAttr("selected");
+            $("#_repeat_frequency option[value='"+res.repeat_frequency+"']").attr('selected', 'selected');
+            //$('#_repeat_frequency:eq()').attr('selected', true);
+            $("#info-light-box .years").removeClass("show").addClass("hide");
+            $("#info-light-box .months").removeClass("show").addClass("hide");
+            $("#info-light-box .weeks").removeClass("hide").addClass("show")
+
+            $("span._repeat_on_suffix").html("week"); 
+            var day = res.repeat_on.split(",");
+              if($.inArray("0",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-0").prop("checked",true);
+              }
+              if($.inArray("1",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-1").prop("checked",true);
+              }
+              if($.inArray("2",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-2").prop("checked",true);
+              }
+              if($.inArray("3",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-3").prop("checked",true);
+              }
+              if($.inArray("4",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-4").prop("checked",true);
+              }
+              if($.inArray("5",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-5").prop("checked",true);
+              }
+              if($.inArray("6",day) >=0)
+              {
+                  $("#info-light-box .weeks #weekday-6").prop("checked",true);
+              }
+
+                $("#info-light-box #begin_on_now").prop("checked",false);
+                $("#info-light-box #begin_on_now").attr('disabled', true);
+                $("#info-light-box #begin_on_date").prop("checked",true);
+                var begin_on_value = GetFormattedDate(res.begin_on_value);
+                $("#info-light-box #begin_on_picker").val(begin_on_value);
+              if(res.add_suffix == 1)
+              {
+                  $("#info-light-box #_add_suffix").prop("checked",true);
+              }
+
+        }
+          if(res.ends_on == "date")
+          {
+          //console.log(end_on_value);
+            $("#info-light-box #ends_on_date").prop("checked",true);
+            var end_on_value = GetFormattedDate(res.end_on_value);
+            $("#info-light-box #ends_on_picker").val(end_on_value);
+          }
+          else
+          {
+            $("#info-light-box #ends_on_occurrences").prop("checked",true);
+            $("#info-light-box #occurrences_box").val(res.end_on_value);
+          }
+        }
+        }
+      })
+        test();
+        disableButton();
+        });
+}
+
+
+var saveTaskSchedule = function()
+{
+          $("#task-template-save").on('touchstart click', function(){
+          var form_data = $(".template-form").find("select, textarea, input").serialize();
+          console.log(form_data);
+          $.post(site_url+'/goals/save-template', form_data, function(response) {
+        if (response.status == 1)
+        {
+
+            console.log(response.data);
+            $.notify(response.msg, {
+            type:'success',
+            z_index: 999999999,
+            });
+            $.tloader("hide");
+            $("#info-light-box").modal('hide');
+        }else{
+            $.notify(response.data.join("<br/>"), {
+            type:'danger',
+            z_index: 999999999,
+            });
+            $.tloader("hide");
+          }
+        });
+        });
+
+}
+
+var checkHabitSchedule = function()
+{
+      $("#routine").click(function(){
+          $("#week").removeClass('active').addClass('inactive');
+          $("#routine").removeClass('inactive').addClass('active');
+          $(".day-options").removeClass('hide').addClass('show');
+
+      });
+
+      $("#week").click(function(){
+          $("#week").removeClass('inactive').addClass('active');
+          $("#routine").removeClass('active').addClass('inactive');
+          $(".day-options").removeClass('show').addClass('hide');
+      }); 
+}
+
+
+    $("#habit-schedule-cancel").click(function(){
+    $('#light_box').modal('hide');
+
+});
+
+
+
+var parentChange = function()
+{
+    $("#select_lobby_habit").change(function(){
+        $("#sub_goals_id").val('');
+        $(".sub-goal").val('');
+
+    })
+}
+
+var save_subGoal = function()
+{
+      var timeoutId;
+
+      $(".sub-goal").bind('input propertychange', function() {
+          var type =  $(".lobbyPart .active").attr("data-id");
+          var form_data =  $("#habit_lobby_form").serialize();
+          clearTimeout(timeoutId);
+    timeoutId = setTimeout(function() {
+        // Runs 1 second (1000 ms) after the last change    
+        autosave(type,form_data);
+    }, 5000);
+          
+      });
+
+}
+
+
+var autosave = function(type,form_data)
+{
+    $.ajax({
+        url : site_url+"/goals/add-lobby",
+        method : "post",
+        data : form_data+"&type="+type,
+        success : function(res)
+        {
+          if(res.status == 1)
+          {
+              $("#sub_goals_id").val(res.data.auto_save_id);
+              $("#sub_goals_id").attr("data-id",res.data.id);
+              $("#sub_habit_type").attr("data-id",res.data.auto_save_id);
+              $("#sub_habit_type").attr("data-value",res.data.id);
+              $(".green").attr("data-id",res.data.auto_save_id);
+              $(".habit-start-date").attr("data-id",res.data.auto_save_id);
+          }
+       // console.log(res);
+    }
+    })
+}
+
+
+var habitSchedule = function(goal_id)
+{
+        $("#habit-schedule-save").click(function(){
+        //alert(goal_id);
+                $.tloader("show","Loading...");
+                //var goal_id =  $("#habit-schedule .setting").attr("data-id");
+                var type    =  $("#habit-schedule .type-options .active").attr("data-value");
+                var text    =  $("#habit-schedule #add_text_type").val();
+                var day = [];
+                $.each($("input[name='days']:checked"), function(){            
+                    day.push($(this).val());
+              });
+                var str_day  = day.join(",");
+
+              $.ajax({
+                  url :   site_url+"/goals/add-habit-type",
+                  method : "post",
+                  data   : {goal_id:goal_id,type:type,text:text,day:str_day},
+                  success : function(res){
+                  console.log(res);
+                  if(res.status ==1)
+                  {
+                      $.notify(res.msg, {
+                      type:'success',
+                      z_index: 999999999,
+                      });
+
+                      $.tloader("hide");
+                      //location.reload();
+                      $("#light_box").modal('hide');
+                  }
+                  else{
+                      $.notify(res.data.join("<br/>"), {
+                      type:'danger',
+                      z_index: 999999999,
+                      });
+                      $.tloader("hide");
+                      }
+                  } 
+              })
+
+
+        });
+}
+
+
+function test ()
+{
+      var repeat_frequency = $("#_repeat_frequency").val();
+      if(repeat_frequency=='weeks')
+      {
+          $(".repeat-on-section.weeks").removeClass('hide').addClass('show');
+          $(".repeat-on-section.months").removeClass('show').addClass('hide');
+          $(".repeat-on-section.years").removeClass('show').addClass('hide');
+          $("#begin_on_now").attr('disabled', true);
+          $("#begin_on_date").prop('checked', true);
+          $("span._repeat_on_suffix").html("week");     
+      }
+      else if(repeat_frequency=='months')
+      {
+          $(".repeat-on-section.weeks").removeClass('show').addClass('hide');
+          $(".repeat-on-section.months").removeClass('hide').addClass('show');
+          $(".repeat-on-section.years").removeClass('show').addClass('hide');
+          $("#begin_on_now").attr('disabled', true);
+          $("#begin_on_date").prop('checked', true); 
+          $("#begin_on_now").attr('disabled', false); 
+          $("span._repeat_on_suffix").html("month"); 
+      }
+      else
+      {
+            $(".repeat-on-section.weeks").removeClass('show').addClass('hide');
+            $(".repeat-on-section.months").removeClass('show').addClass('hide');
+            $(".repeat-on-section.years").removeClass('hide').addClass('show');
+            $("span._repeat_on_suffix").html("year"); 
+          if($(".years #repeat_on_firstday").prop('checked')===true)
+          {
+              $("#begin_on_now").attr('disabled', false);
+              $("#begin_on_now").prop('checked', true); 
+          }
+      }
+}
+
+
+function disableButton()
+{
+
+      if($(".years #repeat_on_firstday").prop('checked')===true)
+      {
+            $("#begin_on_now").attr('disabled', true);
+            $("#begin_on_date").prop('checked', true); 
+      }
+      else if($(".years #repeat_on_lastday").prop('checked')===true)
+      {
+            $("#begin_on_now").attr('disabled', true);
+            $("#begin_on_date").prop('checked', true);   
+      }
+      else{
+            $("#begin_on_now").attr('disabled', false);
+            $("#begin_on_now").prop('checked', true); 
+      } 
+}
+
+
+
+function current_date() {
+    var monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    var d = new Date();
+    var strDate = d.getDate() + " " + monthNames[d.getMonth()] + ", " + d.getFullYear();
+    console.log(strDate);
+    return strDate;
+}
+
+
+var cancelTaskTemplate = function()
+{
+    $('#task-template-cancel').on('touchstart click', function() {
+    $("#info-light-box").modal('hide');
+});
+}
+
+
+var showAndHideInLobby = function()
+{
+          $(".green").click(function(){
+          var subgoal = $(".sub-goal").val();
+          //alert(subgoal);
+      if(subgoal == "")
+      {
+          alert("Please Enter Sub Goal here");
+          return false;
+      }
+          var task_id =  $(this).attr("data-id");
+          addShowLobby(task_id);
+
+      })
+}
+
+var addShowLobby = function(task_id)
+{
+      $(".lobby-show").unbind("touchstart click").bind("touchstart click",function(){
+      $.tloader("show","Loading...");
+      $(".lobby-show").removeClass("active").addClass("inactive");
+      $(this).removeClass("inactive").addClass("active");
+      var type = $(this).attr("data-id");
+      $.ajax({
+          url : site_url+"/goals/show-in-lobby",
+          method : "post",
+          data : {task_id:task_id,type:type},
+      success : function(res)
+      {
+          console.log(res);
+          if(res.status ==1)
+          {
+                $.notify(res.msg, {
+                type:'success',
+                z_index: 999999999,
+                });
+
+                $.tloader("hide");
+                $("#show-lobby").modal('hide');
+          }
+          else{
+              $.notify(res.data.join("<br/>"), {
+              type:'danger',
+              z_index: 999999999,
+              });
+              $.tloader("hide");
+          }
+      }
+})
+
+})
+}
+
+var cancelLobbyModal = function()
+{
+      $("#lobby-template-cancel").click(function(){
+      $("#habit_lobby_form")[0].reset();
+      $("#addLobby").modal("hide");
+      })
+}
+
+var saveLobbyModal = function()
+{
+      $("#lobby-template-save").click(function(){
+      var sub_goals = $(".sub-goal").val();
+      if(sub_goals == "")
+      {
+          alert("Please Enter Sub Goal Here.");
+          return false;
+      }
+          $.tloader("show","Loading...");
+          $("#habit_lobby_form")[0].reset();
+            var msg = "Lobby Added."
+            $.notify(msg, {
+            type:'success',
+            z_index: 999999999,
+            });
+
+            $.tloader("hide");
+            $("#addLobby").modal('hide');
+      })
+}
+

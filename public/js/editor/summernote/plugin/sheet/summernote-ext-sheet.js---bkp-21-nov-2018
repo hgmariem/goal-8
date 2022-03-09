@@ -1,0 +1,437 @@
+(function(factory) {
+  /* global define */
+  if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define(['jquery'], factory);
+  } else if (typeof module === 'object' && module.exports) {
+    // Node/CommonJS
+    module.exports = factory(require('jquery'));
+  } else {
+    // Browser globals
+    factory(window.jQuery);
+  }
+}(function($) {
+  // Extends plugins for adding hello.
+  //  - plugin is external module for customizing.
+  $.extend($.summernote.plugins, {
+    /**
+     * @param {Object} context - context object has status of editor.
+     */
+    'sheet': function(context) {
+
+      var self = this;
+
+      
+      // ui has renders to build ui elements.
+      //  - you can create a button with `ui.button`
+      var ui = $.summernote.ui;
+
+      var $editor = context.layoutInfo.editor;
+      var options = context.options;
+      var lang = options.langInfo;
+
+      // This events will be attached when editor is initialized.
+      this.events = {
+        // This will be called after modules are initialized.
+        'summernote.init': function(we, e) {
+          //console.log('summernote initialized', we, e);
+          //console.log("init called...");
+        },
+        // This will be called when user releases a key on editable.
+        'summernote.keyup': function(we, e) {
+          
+          $(".sheet-action").hide();
+
+          /*
+          console.log("keyup is called....");
+
+          console.log(e);
+
+          var current_sheet=$(e.target).next(".sheets-panel").find(".sheet-container.active");
+
+          var sheet_container=$(e.target).next(".sheets-panel").find(".sheet_pages");
+          
+          save_sheet(current_sheet, sheet_container);*/
+
+        },
+        'summernote.enter': function(we, e){
+          
+          $(".sheet-action").hide();
+          
+          console.log("enter is called....");
+        },
+        'summernote.focus': function(we, e) {
+          
+          $(".sheet-action").hide();
+          
+          console.log("focus is called....");
+        },
+        'summernote.paste': function(we, e){
+
+          console.log("paste is called....");
+
+          /*var current_sheet=$(e.target).next(".sheets-panel").find(".sheet-container.active");
+
+          var sheet_container=$(e.target).next(".sheets-panel").find(".sheet_pages");
+          
+          save_sheet(current_sheet, sheet_container);*/
+        },
+
+        'summernote.change': function(e, content){
+
+          //console.log("change is called....");
+
+          //console.log(we);
+
+          //console.log(e);
+
+          var current_sheet=$(e.target).parent().find(".sheets-panel").find(".sheet-container.active");
+
+          var sheet_container=$(e.target).parent().find(".sheets-panel").find(".sheet_pages");
+          
+          save_sheet(current_sheet, sheet_container);
+
+        }
+
+      };
+
+      // This method will be called when editor is initialized by $('..').summernote();
+      // You can create elements for plugin
+      this.initialize = function() {
+
+        //console.log("initialize called...");
+
+        var _attr = $editor.prev("textarea:first").attr("name");
+
+        $html_panel="<div>"+
+        "<div class='plus_sheet'><button type='button'>+</button></div>"+
+        "<div class='sheet_pages' data-attr='"+_attr+"'></div>"+
+        "</div>";
+
+        this.$panel = $('<div class="sheets-panel">'+$html_panel+'</div>').css({
+          //position: 'relative',
+         // width: '100%',
+          //background: 'red'
+        });
+
+        //console.log($editor);
+
+        var editable_area=$editor.find(".note-editing-area");
+
+        this.$panel.appendTo(editable_area);
+        
+        this.init_sheet();
+
+        //console.log();
+        var sheet=$(this.$panel[0]).find(".sheet_pages");
+
+        load_sheets(sheet);
+
+      };
+
+      // This methods will be called when editor is destroyed by $('..').summernote('destroy');
+      // You should remove elements on `initialize`.
+      this.destroy = function() {
+        this.$panel.remove();
+        this.$panel = null;
+      };
+
+      this.init_sheet = function(){
+
+          $(".plus_sheet").unbind("click").click(function(){
+              
+              var sheet_pages = $(this).next();
+              //var elem = 
+              init_create_sheet(sheet_pages, true);
+          });
+      };
+
+      var init_create_sheet = function(sheet_pages, init_save){
+
+          /*
+
+          var last_sheet=sheet_pages.find(".sheet-container:last");
+          
+          if(last_sheet && init_save){
+
+            var note_editable=sheet_pages.parents(".note-editing-area").find(".note-editable");
+
+            save_sheet(last_sheet, sheet_pages);
+
+            note_editable.html("");
+          }
+          
+         */
+
+          var note_editable=sheet_pages.parents(".note-editing-area").find(".note-editable");
+
+          note_editable.html("");
+
+          var sheet_data=prepare_create_sheet(sheet_pages);
+          
+          var _attr = sheet_pages.data("attr");
+
+          sheet_data.attr=_attr;   
+
+          sheet_pages.prepend(sheet_data.html);
+
+          init_sheet_toolbar();
+
+          options.sheet.addSheet(sheet_data);
+
+          var last_sheet=sheet_pages.find(".sheet-container:first");
+          
+          last_sheet.addClass("active");
+
+          save_sheet(last_sheet, sheet_pages);
+      };
+
+      var save_sheet = function(sheet, sheet_pages){
+
+          console.log("save called...");
+
+          var note_editable=sheet_pages.parents(".note-editing-area").find(".note-editable");
+
+          var content = note_editable.html();
+          
+          if(last_sheet_data=sheet.data()){
+            var _attr = sheet_pages.data("attr");
+            last_sheet_data.html=content;
+            last_sheet_data.attr=_attr;
+            options.sheet.saveSheet(last_sheet_data);
+
+          }
+      };
+
+      var generate_sheet_name = function(){
+
+          var today = new Date();
+          var dd = today.getDate();
+          var mm = today.getMonth()+1; //January is 0!
+
+          var yyyy = today.getFullYear();
+          if(dd<10){
+              dd='0'+dd;
+          } 
+          if(mm<10){
+              mm='0'+mm;
+          } 
+          var today = dd+'.'+mm+'.'+yyyy;
+          return today;
+      };
+
+      var load_sheets = function(sheet_pages){
+
+            var datas= sheet_pages.parents("header:first").find("._editor").data("attrs");
+
+            if(datas){
+              
+              $.each(datas,function(key,value){
+                
+                var is_default = value.sheet_id=='default'?true:false;
+                
+                var sheet_data = render_sheet(value.sheet_id, value.sheet_number, value.sheet_name, is_default);
+                
+                sheet_pages.prepend(sheet_data.html);
+              });
+              
+              init_sheet_toolbar();
+
+            }else{
+
+              init_create_sheet(sheet_pages);
+
+            }
+
+      };
+
+      var prepare_create_sheet = function(elem){
+
+          var total_sheets=$(elem).find(".sheet-container").length;
+
+          var is_default=(!total_sheets)?true:false;
+
+          var id=(is_default)?"default":(Math.floor(100000000 + Math.random() * 900000000));
+
+          var sheet_number=$(elem).find(".sheet-container").length+1;
+          
+          var sheet_name=generate_sheet_name();
+          
+          $(elem).find(".sheet-container").removeClass("active");
+
+          return render_sheet(id, sheet_number, sheet_name, is_default);
+
+      };
+
+      var render_sheet =  function(id, sheet_number, sheet_name, is_default){
+        
+        var sheet_class=is_default?"sheet-container active default_sheet":"sheet-container";
+
+        var html="<div class='"+sheet_class+"' data-sheet_id='"+id+"' data-sheet_number='"+sheet_number+"' data-sheet_name='"+sheet_name+"'>"+
+          "<span class='sheet-name'><span class='sheetname'>"+sheet_name+"</span> <span class='action-trigger'></span></span>"+
+            "<ul class='sheet-action' data-sheet_id='"+id+"'>";
+
+            if(!is_default){
+              html+="<li class='deletsheet'>Delete</li>";
+            }
+
+            html+="<li class='duplicatesheet'>Duplicate</li>"+
+              "<li class='renamesheet'>Rename</li>"+
+            "</ul>"+
+          "</div>";
+
+          var sheet_data={};
+          
+          sheet_data.html=html;
+          
+          sheet_data.sheet={id:id, sheet_number:sheet_number, sheet_name:sheet_name};
+
+          return sheet_data;
+
+      };
+
+      var init_sheet_toolbar = function(){
+
+        $(".sheet-name").unbind("click").click(function(){
+
+            $(".sheet-container").removeClass("active");
+
+            $(this).parent().addClass("active");
+
+            $(".sheet-action").hide();
+
+            //sheet_pages
+            var attr = $(this).parents(".sheet_pages").data("attr");
+
+            var sheet_data = $(this).parent().data();
+            
+            sheet_data.attr=attr;
+
+            var note_editable=$(this).parents(".note-editing-area").find(".note-editable");
+
+            options.sheet.getSheet(sheet_data, function(data){
+
+                note_editable.html(data.meta_value);
+
+            });
+        });
+
+        $(".action-trigger").unbind("click").click(function(e){
+
+            e.stopPropagation();
+
+            //$(".sheet-container").removeClass("active");
+
+            //$(this).parents(".sheet-container:first").addClass("active");
+
+            $(".sheet-action").hide();
+
+            $(this).parents(".sheet-container:first").find(".sheet-action").show();
+        });
+
+
+        $(".deletsheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+          
+          var attr = sheet.parents(".sheet_pages").data("attr");
+
+          //console.log(sheet);
+
+          var last_sheet = sheet.parents(".sheet_pages").find(".default_sheet");
+
+          //console.log(last_sheet);
+
+          last_sheet.addClass("active");
+          
+          sheet.remove();
+
+          var sheet_data = sheet.data();
+          
+          sheet_data.attr = attr;
+
+          options.sheet.deleteSheet(sheet_data);
+
+          
+          //console.log(last_sheet);
+
+
+          //var attr = last_sheet.parents(".sheet_pages").data("attr");
+
+          var sheet_data = last_sheet.data();
+
+          sheet_data.attr=attr;
+
+          var note_editable=last_sheet.parents(".note-editing-area").find(".note-editable");
+
+          options.sheet.getSheet(sheet_data, function(data){
+
+            note_editable.html(data.meta_value);
+
+          });
+
+        });
+
+
+        $(".duplicatesheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+
+          //console.log(sheet);
+
+          var sheet_data = sheet.data();
+
+          sheet_data.attr = sheet.parent().data("attr");
+
+          options.sheet.duplicateSheet(sheet_data,function(data){
+            
+            var value = JSON.parse(data.meta_attr);
+
+            var sheet_data = render_sheet(value.sheet_id, value.sheet_number, value.sheet_name, false);
+            
+            $(sheet_data.html).insertAfter( sheet );  
+            
+            $(".sheet-action").hide();
+
+            init_sheet_toolbar();
+
+          });
+
+        });
+
+
+
+        $(".renamesheet").unbind("click").click(function(){
+
+          var sheet = $(this).parents(".sheet-container:first");
+          
+          var current_name = sheet.find("span.sheetname").html();
+          
+          var sheetname = prompt("Sheet Name:", current_name);
+
+          if(sheetname){
+            sheet.find("span.sheetname").html(sheetname);
+            sheet.data("sheet_name",sheetname);
+          }
+
+          var sheet_data = sheet.data();
+          
+          sheet_data.attr = sheet.parent().data("attr");
+
+          /*var note_editable=sheet.parents(".note-editing-area").find(".note-editable");
+
+          var content = note_editable.html();
+          
+          sheet_data.html = content;*/
+          
+          $(".sheet-action").hide();
+          
+           options.sheet.renameSheet(sheet_data);
+
+        });
+
+      };
+
+    }
+  });
+}));
